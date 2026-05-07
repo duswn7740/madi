@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.log
+.expo/
+dist/
+.DS_Store
+.docx
+madi-origins/
