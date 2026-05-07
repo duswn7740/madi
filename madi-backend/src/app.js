@@ -8,15 +8,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
-app.use('/users', require('./routes/users'));
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.use('/api/users', require('./routes/users'));
 
 app.use(auth);
-app.use('/practices', require('./routes/practices'));
-app.use('/logs', require('./routes/logs'));
-app.use('/packs', require('./routes/packs'));
-app.use('/shop', require('./routes/shop'));
-app.use('/ads', require('./routes/ads'));
+app.use('/api/practices', require('./routes/practices'));
+app.use('/api/logs', require('./routes/logs'));
+app.use('/api/packs', require('./routes/packs'));
+app.use('/api/shop', require('./routes/shop'));
+app.use('/api/ads', require('./routes/ads'));
 
 app.use((err, req, res, next) => {
   console.error(err);
