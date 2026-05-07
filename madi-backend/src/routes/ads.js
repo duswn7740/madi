@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { watch } = require('../controllers/ads.controller');
+const { watch } = require('../controllers/adsController');
 
 router.post('/watch', watch);
 
