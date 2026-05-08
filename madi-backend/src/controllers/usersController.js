@@ -12,11 +12,12 @@ exports.register = async (req, res) => {
   if (existing) return res.status(409).json({ error: '이미 사용중인 이메일입니다.' });
 
   const password_hash = await bcrypt.hash(password, 10);
-  await db.query(
+  const [result] = await db.query(
     'INSERT INTO users (email, password_hash, nickname) VALUES (?, ?, ?)',
     [email, password_hash, nickname]
   );
-  res.status(201).json({ ok: true });
+  const token = jwt.sign({ id: result.insertId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+  res.status(201).json({ token, nickname });
 };
 
 // POST /users/login - 로그인, JWT 토큰 발급

@@ -3,7 +3,7 @@ import Text from '@/src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { colors, spacing, fontSize, radius } from '@/src/theme';
+import { colors, spacing, typography, radius } from '@/src/theme';
 import AddPracticeModal from '@/src/components/AddPracticeModal';
 
 const DUMMY_PRACTICES = [
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   monthLabel: {
-    fontSize: fontSize.xs,
+    typography: typography.xs,
     color: colors.textSub,
     textAlign: 'center',
     marginBottom: 2,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     borderColor: colors.butter,
   },
   dayDate: {
-    fontSize: fontSize.sm,
+    typography: typography.sm,
     fontWeight: '500',
   },
   dayDateToday: {
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   practiceContent: {
     flex: 1,
-    fontSize: fontSize.md,
+    typography: typography.md,
     color: colors.textMain,
     fontWeight: '500',
   },
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   addButtonText: {
-    fontSize: fontSize.sm,
+    typography: typography.sm,
     color: colors.textMain,
     fontWeight: '600',
   },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bannerAdText: {
-    fontSize: fontSize.xs,
+    typography: typography.xs,
     color: colors.textSub,
   },
 });

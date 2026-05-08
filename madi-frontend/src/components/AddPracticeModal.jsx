@@ -1,7 +1,7 @@
 import { View, Modal, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Text from '@/src/components/Text';
 import { useState } from 'react';
-import { colors, spacing, fontSize, radius } from '@/src/theme';
+import { colors, spacing, typography, radius } from '@/src/theme';
 
 const MAX_LENGTH = 20;
 
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    fontSize: fontSize.lg,
+    typography: typography.lg,
     fontWeight: '700',
     color: colors.textMain,
     textAlign: 'center',
@@ -124,11 +124,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: fontSize.md,
+    typography: typography.md,
     color: colors.textMain,
   },
   counter: {
-    fontSize: fontSize.xs,
+    typography: typography.xs,
     color: colors.textSub,
   },
   counterMax: {
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   chipTitle: {
-    fontSize: fontSize.xs,
+    typography: typography.xs,
     color: colors.textSub,
     marginBottom: spacing.xs,
   },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     borderColor: colors.butter,
   },
   chipText: {
-    fontSize: fontSize.sm,
+    typography: typography.sm,
     color: colors.textMain,
   },
   buttons: {
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelText: {
-    fontSize: fontSize.sm,
+    typography: typography.sm,
     color: colors.textSub,
   },
   saveButton: {
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inactive,
   },
   saveText: {
-    fontSize: fontSize.sm,
+    typography: typography.sm,
     fontWeight: '700',
     color: colors.textMain,
   },

@@ -1,5 +1,5 @@
 import { Text as RNText, StyleSheet } from 'react-native';
-import { fonts, colors } from '@/src/theme';
+import { fontFamily, colors } from '@/src/theme';
 
 export default function Text({ style, bold, ...props }) {
   return (
@@ -12,10 +12,10 @@ export default function Text({ style, bold, ...props }) {
 
 const styles = StyleSheet.create({
   base: {
-    fontFamily: fonts.regular,
+    fontFamily: fontFamily.regular,
     color: colors.textMain,
   },
   bold: {
-    fontFamily: fonts.bold,
+    fontFamily: fontFamily.bold,
   },
 });

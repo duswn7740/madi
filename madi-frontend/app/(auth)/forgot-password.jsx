@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import Text from '@/src/components/Text';
-import { colors, spacing, fontSize, radius, fonts } from '@/src/theme';
+import { colors, spacing, typography, radius, fontFamily } from '@/src/theme';
 import { forgotPassword } from '@/src/api/auth';
 
 export default function ForgotPasswordScreen() {
@@ -43,7 +43,7 @@ export default function ForgotPasswordScreen() {
             placeholderTextColor={colors.textSub}
             keyboardType="email-address"
             autoCapitalize="none"
-            fontFamily={fonts.regular}
+            fontFamily={fontFamily.regular}
           />
 
           <TouchableOpacity
@@ -84,11 +84,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   title: {
-    fontSize: fontSize.xl,
+    fontSize: typography.xl,
     color: colors.textMain,
   },
   desc: {
-    fontSize: fontSize.sm,
+    fontSize: typography.sm,
     color: colors.textSub,
     textAlign: 'center',
     marginBottom: spacing.xs,
@@ -104,9 +104,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    fontSize: fontSize.md,
+    fontSize: typography.md,
     color: colors.textMain,
-    fontFamily: fonts.regular,
+    fontFamily: fontFamily.regular,
   },
   button: {
     backgroundColor: colors.butter,
@@ -118,11 +118,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inactive,
   },
   buttonText: {
-    fontSize: fontSize.md,
+    fontSize: typography.md,
     color: colors.textMain,
   },
   link: {
-    fontSize: fontSize.sm,
+    fontSize: typography.sm,
     color: colors.textSub,
     marginTop: spacing.xs,
   },
