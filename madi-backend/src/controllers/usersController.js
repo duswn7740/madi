@@ -1,6 +1,17 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const db = require('../config/db');
+
+const mailer = nodemailer.createTransport({
+  service: 'gmail',
+  auth: { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+});
+
+function generateTempPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
 
 // POST /users/register - 회원가입
 exports.register = async (req, res) => {
@@ -51,6 +62,28 @@ exports.login = async (req, res) => {
 
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
   res.json({ token, nickname: user.nickname });
+};
+
+// POST /users/forgot-password - 임시 비밀번호 발급 및 이메일 전송
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email 필요' });
+
+  const [[user]] = await db.query('SELECT id, nickname FROM users WHERE email = ? AND deleted_at IS NULL', [email]);
+  if (!user) return res.status(404).json({ error: '가입된 이메일이 아닙니다.' });
+
+  const tempPassword = generateTempPassword();
+  const password_hash = await bcrypt.hash(tempPassword, 10);
+  await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash, user.id]);
+
+  await mailer.sendMail({
+    from: `"마디" <${process.env.MAIL_USER}>`,
+    to: email,
+    subject: '[마디] 임시 비밀번호 안내',
+    text: `안녕하세요 ${user.nickname}님!\n\n임시 비밀번호: ${tempPassword}\n\n로그인 후 비밀번호를 변경해주세요.`,
+  });
+
+  res.json({ ok: true });
 };
 
 // GET /users/me - 내 정보 조회
