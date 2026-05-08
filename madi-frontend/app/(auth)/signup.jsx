@@ -63,7 +63,7 @@ export default function SignupScreen() {
     setLoading(true);
 
     try {
-      const { data } = await client.post('/api/users/register', {
+      const { data } = await client.post('/users/register', {
         nickname: nickname.trim(),
         email: email.trim(),
         password,

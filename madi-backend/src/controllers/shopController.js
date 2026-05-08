@@ -55,9 +55,22 @@ exports.buy = async (req, res) => {
   if (pack.unlock_type === 'coins') {
     const [[user]] = await db.query('SELECT coins FROM users WHERE id = ?', [req.user.id]);
     if (user.coins < pack.price) return res.status(400).json({ error: '코인 부족' });
-    await db.query('UPDATE users SET coins = coins - ? WHERE id = ?', [pack.price, req.user.id]);
+
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query('UPDATE users SET coins = coins - ? WHERE id = ?', [pack.price, req.user.id]);
+      await conn.query('INSERT INTO unlocked_packs (user_id, pack_id) VALUES (?, ?)', [req.user.id, packId]);
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  } else {
+    await db.query('INSERT INTO unlocked_packs (user_id, pack_id) VALUES (?, ?)', [req.user.id, packId]);
   }
 
-  await db.query('INSERT INTO unlocked_packs (user_id, pack_id) VALUES (?, ?)', [req.user.id, packId]);
   res.status(201).json({ ok: true });
 };

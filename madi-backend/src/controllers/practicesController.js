@@ -40,14 +40,22 @@ exports.create = async (req, res) => {
     [req.user.id, date]
   );
 
-  const [result] = await db.query(
-    'INSERT INTO practices (user_id, date, content, order_index) VALUES (?, ?, ?, ?)',
-    [req.user.id, date, content, maxOrder + 1]
-  );
-
-  await db.query('INSERT INTO logs (practice_id, count) VALUES (?, 0)', [result.insertId]);
-
-  res.status(201).json({ id: result.insertId });
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [result] = await conn.query(
+      'INSERT INTO practices (user_id, date, content, order_index) VALUES (?, ?, ?, ?)',
+      [req.user.id, date, content, maxOrder + 1]
+    );
+    await conn.query('INSERT INTO logs (practice_id, count) VALUES (?, 0)', [result.insertId]);
+    await conn.commit();
+    res.status(201).json({ id: result.insertId });
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
 
 // PATCH /practices/:id - 연습 내용 수정
@@ -82,12 +90,20 @@ exports.copy = async (req, res) => {
     [req.user.id, targetDate]
   );
 
-  const [result] = await db.query(
-    'INSERT INTO practices (user_id, date, content, order_index) VALUES (?, ?, ?, ?)',
-    [req.user.id, targetDate, source.content, maxOrder + 1]
-  );
-
-  await db.query('INSERT INTO logs (practice_id, count) VALUES (?, 0)', [result.insertId]);
-
-  res.status(201).json({ id: result.insertId });
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [result] = await conn.query(
+      'INSERT INTO practices (user_id, date, content, order_index) VALUES (?, ?, ?, ?)',
+      [req.user.id, targetDate, source.content, maxOrder + 1]
+    );
+    await conn.query('INSERT INTO logs (practice_id, count) VALUES (?, 0)', [result.insertId]);
+    await conn.commit();
+    res.status(201).json({ id: result.insertId });
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };

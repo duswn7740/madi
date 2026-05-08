@@ -35,10 +35,10 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="tools"
+        name="calendar"
         options={{
-          title: '도구',
-          tabBarIcon: ({ focused }) => <TabIcon name="musical-notes" focused={focused} />,
+          title: '달력',
+          tabBarIcon: ({ focused }) => <TabIcon name="calendar" focused={focused} />,
         }}
       />
       <Tabs.Screen

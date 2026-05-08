@@ -12,12 +12,28 @@ exports.register = async (req, res) => {
   if (existing) return res.status(409).json({ error: '이미 사용중인 이메일입니다.' });
 
   const password_hash = await bcrypt.hash(password, 10);
-  const [result] = await db.query(
-    'INSERT INTO users (email, password_hash, nickname) VALUES (?, ?, ?)',
-    [email, password_hash, nickname]
-  );
-  const token = jwt.sign({ id: result.insertId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
-  res.status(201).json({ token, nickname });
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [result] = await conn.query(
+      'INSERT INTO users (email, password_hash, nickname) VALUES (?, ?, ?)',
+      [email, password_hash, nickname]
+    );
+    const [[defaultPack]] = await conn.query("SELECT id FROM sticker_packs WHERE unlock_type = 'default' LIMIT 1");
+    if (defaultPack) {
+      await conn.query('INSERT INTO unlocked_packs (user_id, pack_id) VALUES (?, ?)', [result.insertId, defaultPack.id]);
+    }
+
+    await conn.commit();
+    const token = jwt.sign({ id: result.insertId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+    res.status(201).json({ token, nickname });
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
 
 // POST /users/login - 로그인, JWT 토큰 발급

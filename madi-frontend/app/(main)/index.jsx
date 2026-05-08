@@ -1,70 +1,12 @@
 import { View, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
-import Text from '@/src/components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { colors, spacing, typography, radius } from '@/src/theme';
+import Text from '@/src/components/Text';
+import CalendarStrip from '@/src/components/CalendarStrip';
 import AddPracticeModal from '@/src/components/AddPracticeModal';
-
-const DUMMY_PRACTICES = [
-  { id: 1, content: '하농 39번', sticker_count: 7 },
-  { id: 2, content: '쇼팽 10-4 우손', sticker_count: 3 },
-  { id: 3, content: '체르니 30번', sticker_count: 10 },
-];
-
-// 임시 더미 - 연습 있는 날짜
-const DUMMY_HAS_PRACTICE = [1, 3, 5];
-
-function CalendarStrip() {
-  const today = new Date();
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() - 3 + i);
-    return d;
-  });
-
-  const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
-
-  function getDayColor(index, hasPractice) {
-    if (index === 3) return colors.sageDark;
-    if (index < 3) return hasPractice ? colors.sageDark : colors.textSub;
-    return hasPractice ? colors.butterDark : colors.textSub;
-  }
-
-  return (
-    <View style={styles.calendarWrapper}>
-      <View style={styles.calendarStrip}>
-        <TouchableOpacity style={styles.calendarArrow}>
-          <Ionicons name="chevron-back" size={16} color={colors.textSub} />
-        </TouchableOpacity>
-
-        {days.map((d, i) => {
-          const isToday = i === 3;
-          const hasPractice = DUMMY_HAS_PRACTICE.includes(i);
-          const textColor = getDayColor(i, hasPractice);
-
-          return (
-            <TouchableOpacity
-              key={i}
-              style={[styles.dayItem, isToday && styles.dayItemToday]}
-            >
-              <Text style={[styles.dayDate, { color: textColor }, isToday && styles.dayDateToday]}>
-                {dayLabels[d.getDay()]}
-              </Text>
-              <Text style={[styles.dayDate, { color: textColor }, isToday && styles.dayDateToday]}>
-                {`${d.getMonth() + 1}/${d.getDate()}`}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-
-        <TouchableOpacity style={styles.calendarArrow}>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSub} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
+import EmptyState from '@/src/components/EmptyState';
 
 function StickerGrid({ count }) {
   return (
@@ -98,6 +40,9 @@ function PracticeItem({ item }) {
 
 export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [metronomeVisible, setMetronomeVisible] = useState(false);
+  const [tunerVisible, setTunerVisible] = useState(false);
 
   function handleSave(content) {
     console.log('추가:', content);
@@ -106,14 +51,19 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <CalendarStrip />
+      <CalendarStrip
+        onDateChange={setSelectedDate}
+        onMetronomePress={() => setMetronomeVisible(true)}
+        onTunerPress={() => setTunerVisible(true)}
+      />
 
       <FlatList
-        data={DUMMY_PRACTICES}
+        data={[]}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <PracticeItem item={item} />}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={<EmptyState image={require('@/assets/icons/madi-icon.png')} message="아직 연습이 없어요" sub="첫 연습을 추가해볼까요?" />}
       />
 
       <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
@@ -139,48 +89,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-
-  // 달력
-  calendarWrapper: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingTop: spacing.xs,
-  },
-  monthLabel: {
-    typography: typography.xs,
-    color: colors.textSub,
-    textAlign: 'center',
-    marginBottom: 2,
-  },
-  calendarStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  calendarArrow: {
-    paddingHorizontal: spacing.sm,
-  },
-  dayItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-  },
-  dayItemToday: {
-    backgroundColor: colors.butterLight,
-    borderWidth: 1,
-    borderColor: colors.butter,
-  },
-  dayDate: {
-    typography: typography.sm,
-    fontWeight: '500',
-  },
-  dayDateToday: {
-    fontWeight: '700',
-  },
-
-  // 연습 목록
   list: {
     padding: spacing.md,
     paddingBottom: spacing.xl,
@@ -203,12 +111,10 @@ const styles = StyleSheet.create({
   },
   practiceContent: {
     flex: 1,
-    typography: typography.md,
+    fontSize: typography.md,
     color: colors.textMain,
     fontWeight: '500',
   },
-
-  // 스티커
   stickerGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -225,8 +131,6 @@ const styles = StyleSheet.create({
   stickerInactive: {
     backgroundColor: colors.inactive,
   },
-
-  // 연습 추가 버튼
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,12 +143,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   addButtonText: {
-    typography: typography.sm,
+    fontSize: typography.sm,
     color: colors.textMain,
     fontWeight: '600',
   },
-
-  // 배너 광고
   bannerAd: {
     height: 46,
     backgroundColor: colors.inactive,
@@ -252,7 +154,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bannerAdText: {
-    typography: typography.xs,
+    fontSize: typography.xs,
     color: colors.textSub,
   },
 });
