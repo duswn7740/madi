@@ -1,15 +1,20 @@
 import { View, Modal, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Text from '@/src/components/Text';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { colors, spacing, typography, radius } from '@/src/theme';
+import { getTemplates } from '@/src/api/practices';
 
 const MAX_LENGTH = 20;
 
-// 임시 더미 템플릿
-const DUMMY_TEMPLATES = ['하농 39번', '쇼팽 10-4 우손', '체르니 30번', '바이엘 상권'];
-
 export default function AddPracticeModal({ visible, onClose, onSave }) {
   const [content, setContent] = useState('');
+  const [templates, setTemplates] = useState([]);
+
+  useEffect(() => {
+    if (visible) {
+      getTemplates().then(setTemplates).catch(() => {});
+    }
+  }, [visible]);
 
   function handleSave() {
     if (!content.trim()) return;
@@ -57,13 +62,13 @@ export default function AddPracticeModal({ visible, onClose, onSave }) {
               </View>
 
               {/* 최근 연습 칩 */}
-              {DUMMY_TEMPLATES.length > 0 && (
+              {templates.length > 0 && (
                 <View style={styles.chipBox}>
                   <Text style={styles.chipTitle}>최근 연습</Text>
                   <ScrollView showsVerticalScrollIndicator={false} style={styles.chipScroll}>
-                    {DUMMY_TEMPLATES.map((t, i) => (
-                      <TouchableOpacity key={i} style={styles.chip} onPress={() => handleChip(t)}>
-                        <Text style={styles.chipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t}</Text>
+                    {templates.map((t, i) => (
+                      <TouchableOpacity key={i} style={styles.chip} onPress={() => handleChip(t.content)}>
+                        <Text style={styles.chipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t.content}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>

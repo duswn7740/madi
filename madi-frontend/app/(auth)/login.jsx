@@ -1,4 +1,4 @@
-import { View, SafeAreaView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, SafeAreaView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import Text from '@/src/components/Text';
@@ -39,8 +39,13 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.logoArea}>
+            <Image 
+              style={{ width: 120, height:120 }}
+              resizeMode="contain"
+              source={require('../../assets/icons/madi-icon.png')} 
+            />
             <Text bold style={styles.appName}>마디</Text>
-            <Text style={styles.appSub}>연습 노트, 메트로놈</Text>
+            <Text style={styles.appSub}>마디마디, 큰 성장</Text>
           </View>
 
           <View style={styles.form}>
