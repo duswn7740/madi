@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 30,
+    height: 30,
   },
   monthLabel: {
     position: 'absolute',
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     pointerEvents: 'none',
     textAlign: 'center',
-    fontSize: typography.md,
+    fontSize: typography.lg,
     color: colors.textMain,
   },
   todayButton: {

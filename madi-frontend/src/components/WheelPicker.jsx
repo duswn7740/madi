@@ -1,18 +1,12 @@
 import React, { useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { colors, typography, fontFamily, radius } from '@/src/theme';
 
 const ITEM_HEIGHT = 44;
-const VISIBLE_ITEMS = 3; // 한 번에 보이는 개수 (선택된 것 위아래 1개씩)
+const VISIBLE_ITEMS = 3;
 
-/**
- * 드럼롤 스타일 스크롤 피커
- * items: string[] — 보여줄 항목 배열
- * selectedIndex: number — 현재 선택된 인덱스
- * onSelect: (index) => void
- */
 export default function WheelPicker({ items, selectedIndex, onSelect, width = 80 }) {
-  const scrollRef = useRef(null);
+  const listRef = useRef(null);
 
   const handleMomentumEnd = (e) => {
     const offsetY = e.nativeEvent.contentOffset.y;
@@ -21,37 +15,48 @@ export default function WheelPicker({ items, selectedIndex, onSelect, width = 80
     onSelect(clamped);
   };
 
-  const scrollToIndex = (index) => {
-    scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-  };
+  const getItemLayout = (_, index) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index,
+  });
+
+  const renderItem = ({ item, index }) => (
+    <View style={styles.item}>
+      <Text style={[
+        styles.itemText,
+        index === selectedIndex && styles.itemTextSelected,
+      ]}>
+        {item}
+      </Text>
+    </View>
+  );
+
+  function scrollToSelected() {
+    listRef.current?.scrollToOffset({
+      offset: selectedIndex * ITEM_HEIGHT,
+      animated: false,
+    });
+  }
 
   return (
     <View style={[styles.container, { width }]}>
-      {/* 선택 영역 하이라이트 */}
       <View style={styles.highlight} pointerEvents="none" />
-
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={listRef}
+        data={items}
+        keyExtractor={(_, i) => String(i)}
+        renderItem={renderItem}
+        getItemLayout={getItemLayout}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         onMomentumScrollEnd={handleMomentumEnd}
         contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
-        onLayout={() => scrollToIndex(selectedIndex)}
+        onLayout={scrollToSelected}
         nestedScrollEnabled
         scrollEventThrottle={16}
-      >
-        {items.map((item, idx) => (
-          <View key={idx} style={styles.item}>
-            <Text style={[
-              styles.itemText,
-              idx === selectedIndex && styles.itemTextSelected,
-            ]}>
-              {item}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -78,12 +83,16 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: typography.md,
+    lineHeight: typography.md + 2,
     fontFamily: fontFamily.regular,
     color: colors.textSub,
+    includeFontPadding: false,
   },
   itemTextSelected: {
     fontSize: typography.lg,
+    lineHeight: typography.lg + 2,
     fontFamily: fontFamily.bold,
     color: colors.textMain,
+    includeFontPadding: false,
   },
 });

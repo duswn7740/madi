@@ -8,26 +8,26 @@ function formatDate(date) {
 }
 
 export async function getPractices(date) {
-  const res = await client.get('/api/practices', { params: { date: formatDate(date) } });
+  const res = await client.get('/practices', { params: { date: formatDate(date) } });
   return res.data;
 }
 
 export async function getTemplates() {
-  const res = await client.get('/api/practices/templates');
+  const res = await client.get('/practices/templates');
   return res.data;
 }
 
 export async function createPractice(date, content) {
-  const res = await client.post('/api/practices', { date: formatDate(date), content });
+  const res = await client.post('/practices', { date: formatDate(date), content });
   return res.data;
 }
 
 export async function updatePractice(id, content) {
-  const res = await client.patch(`/api/practices/${id}`, { content });
+  const res = await client.patch(`/practices/${id}`, { content });
   return res.data;
 }
 
 export async function deletePractice(id) {
-  const res = await client.delete(`/api/practices/${id}`);
+  const res = await client.delete(`/practices/${id}`);
   return res.data;
 }

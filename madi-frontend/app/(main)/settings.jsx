@@ -70,7 +70,7 @@ export default function SettingsScreen() {
     if (newPw.length < 8) { setPwError('새 비밀번호는 8자 이상이어야 해요.'); return; }
     setPwLoading(true);
     try {
-      await client.patch('/api/users/password', { currentPassword: currentPw, newPassword: newPw });
+      await client.patch('/users/password', { currentPassword: currentPw, newPassword: newPw });
       setPwModal(false);
       showAlert('완료', '비밀번호가 변경되었어요.');
     } catch (err) {
@@ -84,7 +84,7 @@ export default function SettingsScreen() {
     if (!nicknameInput.trim()) { setNicknameError('닉네임을 입력해줘요.'); return; }
     setLoading(true);
     try {
-      await client.patch('/api/users/me', { nickname: nicknameInput.trim() });
+      await client.patch('/users/me', { nickname: nicknameInput.trim() });
       await AsyncStorage.setItem('nickname', nicknameInput.trim());
       setNickname(nicknameInput.trim());
       setNicknameModal(false);
@@ -134,7 +134,7 @@ export default function SettingsScreen() {
             showConfirm('회원탈퇴', '정말 탈퇴할까요?\n모든 기록이 삭제됩니다.', '탈퇴', async () => {
               setConfirmModal(m => ({ ...m, visible: false }));
               try {
-                await client.delete('/api/users/me');
+                await client.delete('/users/me');
                 await AsyncStorage.multiRemove(['token', 'nickname']);
                 router.replace('/(auth)/login');
               } catch {

@@ -8,6 +8,8 @@ import CalendarStrip from '@/src/components/CalendarStrip';
 import AddPracticeModal from '@/src/components/AddPracticeModal';
 import EmptyState from '@/src/components/EmptyState';
 import ConfirmModal from '@/src/components/ConfirmModal';
+import MetronomeModal from '@/src/components/MetronomeModal';
+import useMetronome from '@/src/hooks/useMetronome';
 import { getPractices, createPractice, deletePractice } from '@/src/api/practices';
 import { incrementSticker, decrementSticker } from '@/src/api/logs';
 
@@ -75,6 +77,7 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [metronomeVisible, setMetronomeVisible] = useState(false);
   const [tunerVisible, setTunerVisible] = useState(false);
+  const metronome = useMetronome();
   const [deleteConfirm, setDeleteConfirm] = useState({ visible: false, id: null });
 
   const loadPractices = useCallback(async (date) => {
@@ -168,6 +171,12 @@ export default function HomeScreen() {
         cancelText="취소"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteConfirm({ visible: false, id: null })}
+      />
+
+      <MetronomeModal
+        visible={metronomeVisible}
+        onClose={() => setMetronomeVisible(false)}
+        {...metronome}
       />
 
       <View style={styles.bannerAd}>
