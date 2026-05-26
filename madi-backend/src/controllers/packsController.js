@@ -25,16 +25,17 @@ exports.getActive = async (req, res) => {
   if (!date) return res.status(400).json({ error: 'date 필요' });
 
   const [[row]] = await db.query(
-    `SELECT pack_id FROM pack_history
-     WHERE user_id = ? AND from_date <= ?
-     ORDER BY from_date DESC LIMIT 1`,
+    `SELECT sp.name FROM pack_history ph
+     JOIN sticker_packs sp ON sp.id = ph.pack_id
+     WHERE ph.user_id = ? AND ph.from_date <= ?
+     ORDER BY ph.from_date DESC LIMIT 1`,
     [req.user.id, date]
   );
 
-  if (row) return res.json({ packId: row.pack_id });
+  if (row) return res.json({ packId: row.name });
 
   const [[defaultPack]] = await db.query(
-    "SELECT id FROM sticker_packs WHERE unlock_type = 'default' LIMIT 1"
+    "SELECT name FROM sticker_packs WHERE unlock_type = 'default' LIMIT 1"
   );
-  res.json({ packId: defaultPack?.id });
+  res.json({ packId: defaultPack?.name });
 };

@@ -1,4 +1,4 @@
-import { View, TouchableOpacity, StyleSheet, TextInput, Image, Animated, Easing } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, TextInput, Image, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -14,6 +14,8 @@ import MetronomeModal from '@/src/components/MetronomeModal';
 import useMetronome from '@/src/hooks/useMetronome';
 import { getPractices, createPractice, updatePractice, deletePractice, copyPractice, reorderPractices } from '@/src/api/practices';
 import { incrementSticker, decrementSticker } from '@/src/api/logs';
+import { getActivePack } from '@/src/api/packs';
+import BannerAdView from '@/src/components/BannerAdView';
 
 function formatDate(date) {
   const y = date.getFullYear();
@@ -26,34 +28,21 @@ function StickerGrid({ count, practiceId, onCountChange, packId = DEFAULT_PACK, 
   const [disabled, setDisabled] = useState(false);
   const pack = STICKER_PACKS[packId] ?? STICKER_PACKS[DEFAULT_PACK];
   const stickerSource = pack[itemIndex % pack.length];
-  const scaleAnims = useRef(Array.from({ length: 10 }, (_, i) => new Animated.Value(i < count ? 1 : 0.85))).current;
+  const scaleAnims = useRef(Array.from({ length: 10 }, () => new Animated.Value(1))).current;
   const prevCountRef = useRef(count);
 
   useEffect(() => {
     const prev = prevCountRef.current;
     if (count > prev) {
       const idx = count - 1;
-      scaleAnims[idx].setValue(1);
-      Animated.sequence([
-        Animated.timing(scaleAnims[idx], {
-          toValue: 0.8,
-          duration: 80,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnims[idx], {
-          toValue: 1.3,
-          duration: 150,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnims[idx], {
-          toValue: 1,
-          duration: 200,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
+      scaleAnims[idx].setValue(1.1);
+      Animated.spring(scaleAnims[idx], {
+        toValue: 1,
+        useNativeDriver: true,
+        damping: 8,
+        stiffness: 300,
+        mass: 0.6,
+      }).start();
     }
     prevCountRef.current = count;
   }, [count]);
@@ -97,7 +86,7 @@ function StickerGrid({ count, practiceId, onCountChange, packId = DEFAULT_PACK, 
   );
 }
 
-function PracticeItem({ item, itemIndex, onDelete, onStickerChange, onEdit, onCopy, drag }) {
+function PracticeItem({ item, itemIndex, packId, onDelete, onStickerChange, onEdit, onCopy, drag }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.content);
@@ -178,6 +167,7 @@ function PracticeItem({ item, itemIndex, onDelete, onStickerChange, onEdit, onCo
         practiceId={item.id}
         onCountChange={(count) => onStickerChange(item.id, count)}
         itemIndex={itemIndex}
+        packId={packId}
       />
     </View>
   );
@@ -186,6 +176,7 @@ function PracticeItem({ item, itemIndex, onDelete, onStickerChange, onEdit, onCo
 export default function HomeScreen() {
   const [practices, setPractices] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activePack, setActivePack] = useState(DEFAULT_PACK);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [metronomeVisible, setMetronomeVisible] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ visible: false, id: null });
@@ -205,6 +196,9 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadPractices(selectedDate);
+    getActivePack(selectedDate).then(res => {
+      if (res?.packId) setActivePack(res.packId);
+    }).catch(() => {});
   }, [selectedDate]);
 
   async function handleSave(content) {
@@ -329,6 +323,7 @@ export default function HomeScreen() {
             <PracticeItem
               item={item}
               itemIndex={getIndex()}
+              packId={activePack}
               onDelete={handleDeletePress}
               onStickerChange={handleStickerChange}
               onEdit={handleEdit}
@@ -387,9 +382,7 @@ export default function HomeScreen() {
         {...metronome}
       />
 
-      <View style={styles.bannerAd}>
-        <Text style={styles.bannerAdText}>광고 영역</Text>
-      </View>
+      <BannerAdView />
     </SafeAreaView>
   );
 }
@@ -546,15 +539,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.xs,
     color: colors.white,
-  },
-  bannerAd: {
-    height: 46,
-    backgroundColor: colors.inactive,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerAdText: {
-    fontSize: typography.xs,
-    color: colors.textSub,
   },
 });

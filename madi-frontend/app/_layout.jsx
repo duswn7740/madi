@@ -4,6 +4,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useAppInterstitialAd } from '@/src/hooks/useAppInterstitialAd';
+
+function AppWithAds() {
+  useAppInterstitialAd();
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(main)" />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -17,14 +29,10 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(main)" />
-      </Stack>
-      <StatusBar style="auto" />
-    </SafeAreaProvider>
+      <SafeAreaProvider>
+        <AppWithAds />
+        <StatusBar style="auto" />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

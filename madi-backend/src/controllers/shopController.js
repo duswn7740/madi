@@ -14,6 +14,13 @@ exports.getAll = async (req, res) => {
     [req.user.id]
   );
 
+  const [[user]] = await db.query('SELECT coins, today_ad_count, last_ad_date FROM users WHERE id = ?', [req.user.id]);
+  const { coins } = user;
+
+  const todayKST = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const isNewDay = !user.last_ad_date || user.last_ad_date.toISOString().slice(0, 10) !== todayKST;
+  const todayAdCount = isNewDay ? 0 : user.today_ad_count;
+
   const unlockedIds = new Set(unlocked.map(r => r.pack_id));
 
   const result = packs.map(pack => ({
@@ -21,11 +28,11 @@ exports.getAll = async (req, res) => {
     unlocked: unlockedIds.has(pack.id),
     canUnlock:
       pack.unlock_type === 'default' ||
-      pack.unlock_type === 'coins' ||
-      (pack.unlock_type === 'stickers' && totalStickers >= pack.required_stickers),
+      (pack.unlock_type === 'stickers' && totalStickers >= pack.required_stickers) ||
+      (pack.unlock_type === 'coins' && coins >= pack.price),
   }));
 
-  res.json({ totalStickers, packs: result });
+  res.json({ totalStickers, coins, todayAdCount, packs: result });
 };
 
 // POST /shop/:packId/buy - 스티커팩 구매 (코인 차감 또는 스티커 달성 조건 확인)
