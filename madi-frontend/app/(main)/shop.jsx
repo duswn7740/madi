@@ -14,7 +14,7 @@ import { useRewardedAd } from '@/src/hooks/useRewardedAd';
 
 const GRID_PADDING = spacing.md;
 const GRID_GAP = spacing.sm;
-const CARD_WIDTH = (Dimensions.get('window').width - GRID_PADDING * 2 - GRID_GAP * 2) / 3;
+const CARD_WIDTH = Math.floor((Dimensions.get('window').width - GRID_PADDING * 2 - GRID_GAP * 2) / 3);
 
 function formatToday() {
   const d = new Date();
@@ -82,14 +82,13 @@ export default function ShopScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const handleSelect = (pack) => {
-    if (activePack === pack.id) return;
-    const name = pack.name ?? pack.id;
-    showConfirm('팩 변경', `${name} 팩을 사용할까요?`, '변경', async () => {
+    if (activePack === pack.name) return;
+    showConfirm('팩 변경', `${pack.name} 팩을 사용할까요?`, '변경', async () => {
       setConfirmModal(m => ({ ...m, visible: false }));
       setActionPack(pack.id);
       try {
         await selectPack(pack.id);
-        setActivePack(pack.id);
+        setActivePack(pack.name);
       } catch {
         showAlert('', '변경에 실패했어요.');
       } finally {
@@ -168,7 +167,7 @@ export default function ShopScreen() {
         <Text style={styles.sectionTitle}>팩 도감</Text>
         <View style={styles.grid}>
           {packs.map(pack => {
-            const images = STICKER_PACKS[pack.name];
+            const images = STICKER_PACKS[pack.id];
             const isActive = activePack === pack.id;
             const isOwned = pack.unlocked;
             const canUnlock = pack.canUnlock && !isOwned;
@@ -251,7 +250,7 @@ export default function ShopScreen() {
             return (
               <TouchableOpacity
                 key={pack.id}
-                style={styles.card}
+                style={[styles.card, styles.cardUnlockable]}
                 onPress={() => handleBuy(pack)}
                 activeOpacity={0.8}
               >
