@@ -12,7 +12,7 @@ exports.increment = async (req, res) => {
   if (log.count >= 10) return res.status(400).json({ error: '이미 10개 다 찍었어요' });
 
   await db.query(
-    'UPDATE logs SET count = count + 1, updated_at = NOW() WHERE practice_id = ?',
+    'UPDATE logs SET count = count + 1, achieved_at = NOW() WHERE practice_id = ?',
     [req.params.practiceId]
   );
   res.json({ count: log.count + 1 });
@@ -30,7 +30,7 @@ exports.decrement = async (req, res) => {
   if (log.count <= 0) return res.status(400).json({ error: '취소할 스티커가 없어요' });
 
   await db.query(
-    'UPDATE logs SET count = count - 1, updated_at = NOW() WHERE practice_id = ?',
+    'UPDATE logs SET count = count - 1 WHERE practice_id = ?',
     [req.params.practiceId]
   );
   res.json({ count: log.count - 1 });
