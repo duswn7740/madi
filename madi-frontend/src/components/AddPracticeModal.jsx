@@ -62,9 +62,9 @@ export default function AddPracticeModal({ visible, onClose, onSave }) {
               </View>
 
               {/* 최근 연습 칩 */}
-              {templates.length > 0 && (
-                <View style={styles.chipBox}>
-                  <Text style={styles.chipTitle}>최근 연습</Text>
+              <View style={styles.chipBox}>
+                <Text style={styles.chipTitle}>최근 연습</Text>
+                {templates.length > 0 ? (
                   <ScrollView showsVerticalScrollIndicator={false} style={styles.chipScroll}>
                     {templates.map((t, i) => (
                       <TouchableOpacity key={i} style={styles.chip} onPress={() => handleChip(t.content)}>
@@ -72,8 +72,10 @@ export default function AddPracticeModal({ visible, onClose, onSave }) {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
-                </View>
-              )}
+                ) : (
+                  <Text style={styles.emptyText}>연습을 추가하면 여기에 표시돼요</Text>
+                )}
+              </View>
 
               {/* 버튼 */}
               <View style={styles.buttons}>
@@ -199,5 +201,11 @@ const styles = StyleSheet.create({
     typography: typography.sm,
     fontWeight: '700',
     color: colors.textMain,
+  },
+  emptyText: {
+    fontSize: typography.sm,
+    color: colors.textSub,
+    textAlign: 'center',
+    paddingVertical: spacing.sm,
   },
 });

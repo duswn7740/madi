@@ -31,3 +31,13 @@ export async function deletePractice(id) {
   const res = await client.delete(`/practices/${id}`);
   return res.data;
 }
+
+export async function copyPractice(id, targetDate) {
+  const res = await client.post(`/practices/${id}/copy`, { targetDate });
+  return res.data;
+}
+
+export async function reorderPractices(orders) {
+  const res = await client.patch('/practices/reorder', { orders });
+  return res.data;
+}

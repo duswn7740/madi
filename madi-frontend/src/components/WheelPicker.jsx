@@ -1,62 +1,78 @@
 import React, { useRef } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { colors, typography, fontFamily, radius } from '@/src/theme';
 
 const ITEM_HEIGHT = 44;
 const VISIBLE_ITEMS = 3;
 
 export default function WheelPicker({ items, selectedIndex, onSelect, width = 80 }) {
-  const listRef = useRef(null);
+  const scrollRef = useRef(null);
+  const hasInitialized = useRef(false);
+  const lastIndexRef = useRef(selectedIndex);
+  const isMomentumRef = useRef(false);
 
-  const handleMomentumEnd = (e) => {
-    const offsetY = e.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
+  const snapToIndex = (y) => {
+    const index = Math.round(y / ITEM_HEIGHT);
     const clamped = Math.max(0, Math.min(index, items.length - 1));
-    onSelect(clamped);
+    scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
+    if (lastIndexRef.current !== clamped) {
+      lastIndexRef.current = clamped;
+      onSelect(clamped);
+    }
   };
 
-  const getItemLayout = (_, index) => ({
-    length: ITEM_HEIGHT,
-    offset: ITEM_HEIGHT * index,
-    index,
-  });
+  const handleLayout = () => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
+    lastIndexRef.current = selectedIndex;
+  };
 
-  const renderItem = ({ item, index }) => (
-    <View style={styles.item}>
-      <Text style={[
-        styles.itemText,
-        index === selectedIndex && styles.itemTextSelected,
-      ]}>
-        {item}
-      </Text>
-    </View>
-  );
+  const handleMomentumBegin = () => {
+    isMomentumRef.current = true;
+  };
 
-  function scrollToSelected() {
-    listRef.current?.scrollToOffset({
-      offset: selectedIndex * ITEM_HEIGHT,
-      animated: false,
-    });
-  }
+  const handleMomentumEnd = (e) => {
+    isMomentumRef.current = false;
+    snapToIndex(e.nativeEvent.contentOffset.y);
+  };
+
+  const handleDragEnd = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    setTimeout(() => {
+      if (!isMomentumRef.current) {
+        snapToIndex(y);
+      }
+    }, 50);
+  };
 
   return (
     <View style={[styles.container, { width }]}>
       <View style={styles.highlight} pointerEvents="none" />
-      <FlatList
-        ref={listRef}
-        data={items}
-        keyExtractor={(_, i) => String(i)}
-        renderItem={renderItem}
-        getItemLayout={getItemLayout}
+      <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
+        decelerationRate="normal"
+        onMomentumScrollBegin={handleMomentumBegin}
         onMomentumScrollEnd={handleMomentumEnd}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT }}
-        onLayout={scrollToSelected}
+        onScrollEndDrag={handleDragEnd}
+        onLayout={handleLayout}
         nestedScrollEnabled
         scrollEventThrottle={16}
-      />
+      >
+        <View style={{ height: ITEM_HEIGHT }} />
+        {items.map((item, index) => (
+          <View key={index} style={styles.item}>
+            <Text style={[
+              styles.itemText,
+              index === selectedIndex && styles.itemTextSelected,
+            ]}>
+              {item}
+            </Text>
+          </View>
+        ))}
+        <View style={{ height: ITEM_HEIGHT }} />
+      </ScrollView>
     </View>
   );
 }

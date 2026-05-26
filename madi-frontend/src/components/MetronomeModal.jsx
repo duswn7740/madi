@@ -15,7 +15,6 @@ const SUBDIVISIONS = [
 ];
 
 const POLYRHYTHMS = [
-  { label: 'OFF', value: 'off' },
   { label: '2:3', value: '2:3' },
   { label: '3:4', value: '3:4' },
 ];
@@ -196,10 +195,10 @@ export default function MetronomeModal({
             {SUBDIVISIONS.map(d => (
               <TouchableOpacity
                 key={d.value}
-                style={[styles.chip, subdivision === d.value && styles.chipActive]}
-                onPress={() => setSubdivision(d.value)}
+                style={[styles.chip, !isPoly && subdivision === d.value && styles.chipActive]}
+                onPress={() => { setSubdivision(d.value); setPolyrhythm('off'); }}
               >
-                <Text bold={subdivision === d.value} style={[styles.chipText, subdivision === d.value && styles.chipTextActive]}>
+                <Text bold={!isPoly && subdivision === d.value} style={[styles.chipText, !isPoly && subdivision === d.value && styles.chipTextActive]}>
                   {d.label}
                 </Text>
               </TouchableOpacity>

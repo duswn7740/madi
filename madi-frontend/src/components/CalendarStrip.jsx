@@ -23,7 +23,7 @@ function getDateByIndex(index) {
 const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA = Array.from({ length: TOTAL_DAYS }, (_, i) => i);
 
-export default function CalendarStrip({ practiceDates = [], onDateChange, onMetronomePress, onTunerPress }) {
+export default function CalendarStrip({ practiceDates = [], onDateChange, onMetronomePress, onTunerPress, copyMode = false, onCopyDate }) {
   const TODAY = new Date();
   const listRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(TODAY_INDEX);
@@ -64,8 +64,13 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
   }
 
   function handlePress(index) {
+    if (copyMode) {
+      onCopyDate?.(getDateByIndex(index));
+      return;
+    }
     setSelectedIndex(index);
     onDateChange?.(getDateByIndex(index));
+    scrollToIndex(index);
   }
 
   function renderItem({ item: index }) {
@@ -87,6 +92,7 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
           styles.dayInner,
           isSelected && styles.dayItemSelected,
           isToday && styles.dayItemToday,
+          copyMode && styles.dayItemCopyTarget,
         ]}>
           <Text style={[styles.dayDate, { color: textColor }, isToday && styles.dayDateToday]}>
             {dayLabels[d.getDay()]}
@@ -114,9 +120,11 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
         </TouchableOpacity>
 
         {/* 중앙 - 절대 위치로 항상 가운데 */}
-        <Text bold style={styles.monthLabel}>
-          {`${selectedDate.getFullYear()}년 ${selectedDate.getMonth() + 1}월`}
-        </Text>
+        <View style={styles.monthLabelWrapper} pointerEvents="none">
+          <Text bold style={styles.monthLabel}>
+            {`${selectedDate.getFullYear()}년 ${selectedDate.getMonth() + 1}월`}
+          </Text>
+        </View>
 
         <View style={{ flex: 1 }} />
 
@@ -180,13 +188,13 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
   },
-  monthLabel: {
+  monthLabelWrapper: {
     position: 'absolute',
     left: 0,
     right: 0,
-    textAlign: 'center',
-    pointerEvents: 'none',
-    textAlign: 'center',
+    alignItems: 'center',
+  },
+  monthLabel: {
     fontSize: typography.lg,
     color: colors.textMain,
   },
@@ -224,6 +232,10 @@ const styles = StyleSheet.create({
   dayItemToday: {
     backgroundColor: colors.butterLight,
     borderColor: colors.butter,
+  },
+  dayItemCopyTarget: {
+    borderColor: colors.sage,
+    borderWidth: 1,
   },
   dayDate: {
     fontSize: typography.sm,

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -15,6 +16,7 @@ export default function RootLayout() {
   if (!fontsLoaded) return <View />;
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
@@ -23,5 +25,6 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

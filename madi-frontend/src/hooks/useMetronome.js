@@ -4,8 +4,8 @@ import { Audio } from 'expo-av';
 export default function useMetronome() {
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [beats, setBeats] = useState(4);        // 분자 (몇 박)
-  const [subdivision, setSubdivision] = useState(1); // 1=4분, 2=8분, 4=16분, 3=3잇단
+  const [beats, setBeats] = useState(4);
+  const [subdivision, setSubdivision] = useState(1);
   const [polyrhythm, setPolyrhythm] = useState('off');
   const [polyFlipped, setPolyFlipped] = useState(false);
 
@@ -20,7 +20,6 @@ export default function useMetronome() {
   const [stableBpm, setStableBpm] = useState(120);
   const [stableBeats, setStableBeats] = useState(4);
 
-  // 스크롤 중 미친듯이 재시작 방지 - 300ms debounce
   useEffect(() => {
     const t = setTimeout(() => setStableBpm(bpm), 300);
     return () => clearTimeout(t);
@@ -39,11 +38,10 @@ export default function useMetronome() {
   useEffect(() => { subRef.current = subdivision; }, [subdivision]);
   useEffect(() => { polyRef.current = polyrhythm; }, [polyrhythm]);
 
-  const POOL_SIZE = 3;
+  const POOL_SIZE = 6;
   const sounds = useRef({ beep1: [], beep2: [], beep3: [] });
   const poolIdx = useRef({ beep1: 0, beep2: 0, beep3: 0 });
-  const intervalRef = useRef(null);
-  const tickRef = useRef(0);
+  const tickTimerRef = useRef(null);
   const flashTimerMain = useRef(null);
   const flashTimerA = useRef(null);
   const flashTimerB = useRef(null);
@@ -82,49 +80,12 @@ export default function useMetronome() {
     timerRef.current = setTimeout(() => setFn(false), 80);
   }
 
-  function tick() {
-    const t = tickRef.current;
-    const b = beatsRef.current;
-    const div = subRef.current;
-    const poly = polyRef.current;
-
-    if (poly === 'off') {
-      const totalTicks = b * div;
-      const beat = Math.floor(t / div);
-      const sub = t % div;
-      setActiveBeat(beat);
-      setActiveSubBeat(sub);
-      flash(setFlashOn, flashTimerMain);
-      if (sub === 0) {
-        playSound(beat === 0 ? 'beep1' : 'beep2');
-      } else {
-        playSound('beep3');
-      }
-      tickRef.current = (t + 1) % totalTicks;
-
-    } else if (poly === '2:3') {
-      const isA = t % 3 === 0;
-      const isB = t % 2 === 0;
-      if (isA) { setPolyABeat((t / 3) % 2); flash(setPolyFlashA, flashTimerA); playSound('beep1'); }
-      if (isB) { setPolyBBeat((t / 2) % 3); flash(setPolyFlashB, flashTimerB); if (!isA) playSound('beep3'); }
-      tickRef.current = (t + 1) % 6;
-
-    } else if (poly === '3:4') {
-      const isA = t % 4 === 0;
-      const isB = t % 3 === 0;
-      if (isA) { setPolyABeat((t / 4) % 3); flash(setPolyFlashA, flashTimerA); playSound('beep1'); }
-      if (isB) { setPolyBBeat((t / 3) % 4); flash(setPolyFlashB, flashTimerB); if (!isA) playSound('beep3'); }
-      tickRef.current = (t + 1) % 12;
-    }
-  }
-
   useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    clearTimeout(tickTimerRef.current);
 
     if (!isPlaying) {
       setActiveBeat(0); setActiveSubBeat(0); setFlashOn(false);
       setPolyABeat(0); setPolyBBeat(0);
-      tickRef.current = 0;
       return;
     }
 
@@ -132,13 +93,78 @@ export default function useMetronome() {
     const div = subRef.current;
     let intervalMs;
     if (poly === 'off') intervalMs = 60000 / (stableBpm * div);
-    else if (poly === '2:3') intervalMs = 60000 / (bpm * 6);
-    else intervalMs = 60000 / (bpm * 12);
+    else if (poly === '2:3') intervalMs = 60000 / (stableBpm * 6);
+    else intervalMs = 60000 / (stableBpm * 12);
 
-    tickRef.current = 0;
-    tick();
-    intervalRef.current = setInterval(tick, intervalMs);
-    return () => clearInterval(intervalRef.current);
+    let nextBeatTime = performance.now();
+    let scheduledTick = 0;
+    let active = true;
+
+    function getNextTick(t) {
+      if (poly === 'off') return (t + 1) % (beatsRef.current * div);
+      if (poly === '2:3') return (t + 1) % 6;
+      return (t + 1) % 12;
+    }
+
+    // Sound only — no state updates, so no re-render blocking
+    function playTick(t) {
+      if (!active) return;
+      if (poly === 'off') {
+        const beat = Math.floor(t / div);
+        const sub = t % div;
+        playSound(sub === 0 ? (beat === 0 ? 'beep1' : 'beep2') : 'beep3');
+      } else if (poly === '2:3') {
+        const isA = t % 3 === 0;
+        const isB = t % 2 === 0;
+        if (isA) playSound('beep1');
+        if (isB && !isA) playSound('beep3');
+        if (isA && isB) playSound('beep1');
+      } else {
+        const isA = t % 4 === 0;
+        const isB = t % 3 === 0;
+        if (isA) playSound('beep1');
+        if (isB && !isA) playSound('beep3');
+      }
+    }
+
+    // Visual only — state updates separated from sound scheduling
+    function updateVisual(t) {
+      if (!active) return;
+      if (poly === 'off') {
+        const beat = Math.floor(t / div);
+        const sub = t % div;
+        setActiveBeat(beat);
+        setActiveSubBeat(sub);
+        flash(setFlashOn, flashTimerMain);
+      } else if (poly === '2:3') {
+        const isA = t % 3 === 0;
+        const isB = t % 2 === 0;
+        if (isA) { setPolyABeat((t / 3) % 2); flash(setPolyFlashA, flashTimerA); }
+        if (isB) { setPolyBBeat((t / 2) % 3); flash(setPolyFlashB, flashTimerB); }
+      } else {
+        const isA = t % 4 === 0;
+        const isB = t % 3 === 0;
+        if (isA) { setPolyABeat((t / 4) % 3); flash(setPolyFlashA, flashTimerA); }
+        if (isB) { setPolyBBeat((t / 3) % 4); flash(setPolyFlashB, flashTimerB); }
+      }
+    }
+
+    function scheduler() {
+      if (!active) return;
+      const now = performance.now();
+      while (nextBeatTime <= now + 300) {
+        const delay = Math.max(0, nextBeatTime - now);
+        const t = scheduledTick;
+        setTimeout(() => playTick(t), delay);
+        setTimeout(() => updateVisual(t), delay);
+        scheduledTick = getNextTick(t);
+        nextBeatTime += intervalMs;
+      }
+      tickTimerRef.current = setTimeout(scheduler, 25);
+    }
+
+    scheduler();
+    return () => { active = false; clearTimeout(tickTimerRef.current); };
   }, [isPlaying, stableBpm, stableBeats, subdivision, polyrhythm]);
 
   return {

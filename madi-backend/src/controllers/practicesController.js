@@ -74,6 +74,18 @@ exports.remove = async (req, res) => {
   res.json({ ok: true });
 };
 
+// PATCH /practices/reorder - 순서 변경
+exports.reorder = async (req, res) => {
+  const { orders } = req.body; // [{ id, order_index }]
+  if (!Array.isArray(orders)) return res.status(400).json({ error: 'orders 필요' });
+  await Promise.all(
+    orders.map(({ id, order_index }) =>
+      db.query('UPDATE practices SET order_index = ? WHERE id = ? AND user_id = ?', [order_index, id, req.user.id])
+    )
+  );
+  res.json({ ok: true });
+};
+
 // POST /practices/:id/copy - 다른 날짜에 연습 복사 (스티커 0으로 초기화)
 exports.copy = async (req, res) => {
   const { targetDate } = req.body;
