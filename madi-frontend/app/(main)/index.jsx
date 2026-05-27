@@ -11,6 +11,7 @@ import AddPracticeModal from '@/src/components/AddPracticeModal';
 import EmptyState from '@/src/components/EmptyState';
 import ConfirmModal from '@/src/components/ConfirmModal';
 import MetronomeModal from '@/src/components/MetronomeModal';
+import TuningForkModal from '@/src/components/TuningForkModal';
 import useMetronome from '@/src/hooks/useMetronome';
 import { getPractices, createPractice, updatePractice, deletePractice, copyPractice, reorderPractices } from '@/src/api/practices';
 import { incrementSticker, decrementSticker } from '@/src/api/logs';
@@ -179,6 +180,7 @@ export default function HomeScreen() {
   const [activePack, setActivePack] = useState(DEFAULT_PACK);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [metronomeVisible, setMetronomeVisible] = useState(false);
+  const [tuningForkVisible, setTuningForkVisible] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ visible: false, id: null });
   const [copyItem, setCopyItem] = useState(null);
   const [dupConfirm, setDupConfirm] = useState({ visible: false, dateStr: null });
@@ -296,7 +298,7 @@ export default function HomeScreen() {
         practiceDates={practices.map(p => p.date)}
         onDateChange={(date) => setSelectedDate(date)}
         onMetronomePress={() => setMetronomeVisible(true)}
-        onTunerPress={() => {}}
+        onTunerPress={() => setTuningForkVisible(true)}
         copyMode={!!copyItem}
         onCopyDate={handleCopyDate}
       />
@@ -380,6 +382,11 @@ export default function HomeScreen() {
         visible={metronomeVisible}
         onClose={() => setMetronomeVisible(false)}
         {...metronome}
+      />
+
+      <TuningForkModal
+        visible={tuningForkVisible}
+        onClose={() => setTuningForkVisible(false)}
       />
 
       <BannerAdView />

@@ -42,9 +42,17 @@ export default function useMetronome() {
   const sounds = useRef({ beep1: [], beep2: [], beep3: [] });
   const poolIdx = useRef({ beep1: 0, beep2: 0, beep3: 0 });
   const tickTimerRef = useRef(null);
+  const rafRef = useRef(null);
   const flashTimerMain = useRef(null);
   const flashTimerA = useRef(null);
   const flashTimerB = useRef(null);
+
+  // Refs for visual state — read by rAF loop, no setState in scheduler
+  const visualRef = useRef({
+    activeBeat: 0, activeSubBeat: 0, flash: false,
+    polyABeat: 0, polyBBeat: 0, flashA: false, flashB: false,
+    flashMainAt: 0, flashAAt: 0, flashBAT: 0,
+  });
 
   useEffect(() => {
     async function load() {
@@ -74,18 +82,16 @@ export default function useMetronome() {
     poolIdx.current[key] = (idx + 1) % POOL_SIZE;
   }
 
-  function flash(setFn, timerRef) {
-    setFn(true);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setFn(false), 80);
-  }
-
   useEffect(() => {
     clearTimeout(tickTimerRef.current);
+    cancelAnimationFrame(rafRef.current);
 
     if (!isPlaying) {
+      const v = visualRef.current;
+      v.activeBeat = 0; v.activeSubBeat = 0; v.flash = false;
+      v.polyABeat = 0; v.polyBBeat = 0; v.flashA = false; v.flashB = false;
       setActiveBeat(0); setActiveSubBeat(0); setFlashOn(false);
-      setPolyABeat(0); setPolyBBeat(0);
+      setPolyABeat(0); setPolyBBeat(0); setPolyFlashA(false); setPolyFlashB(false);
       return;
     }
 
@@ -106,9 +112,30 @@ export default function useMetronome() {
       return (t + 1) % 12;
     }
 
-    // Sound only — no state updates, so no re-render blocking
     function playTick(t) {
       if (!active) return;
+      // update visual ref (no setState here)
+      const v = visualRef.current;
+      const now = performance.now();
+      if (poly === 'off') {
+        const beat = Math.floor(t / div);
+        const sub = t % div;
+        v.activeBeat = beat;
+        v.activeSubBeat = sub;
+        v.flashMainAt = now;
+      } else if (poly === '2:3') {
+        const isA = t % 3 === 0;
+        const isB = t % 2 === 0;
+        if (isA) { v.polyABeat = (t / 3) % 2; v.flashAAt = now; }
+        if (isB) { v.polyBBeat = (t / 2) % 3; v.flashBAt = now; }
+      } else {
+        const isA = t % 4 === 0;
+        const isB = t % 3 === 0;
+        if (isA) { v.polyABeat = (t / 4) % 3; v.flashAAt = now; }
+        if (isB) { v.polyBBeat = (t / 3) % 4; v.flashBAt = now; }
+      }
+
+      // play sound (no setState)
       if (poly === 'off') {
         const beat = Math.floor(t / div);
         const sub = t % div;
@@ -127,44 +154,43 @@ export default function useMetronome() {
       }
     }
 
-    // Visual only — state updates separated from sound scheduling
-    function updateVisual(t) {
-      if (!active) return;
-      if (poly === 'off') {
-        const beat = Math.floor(t / div);
-        const sub = t % div;
-        setActiveBeat(beat);
-        setActiveSubBeat(sub);
-        flash(setFlashOn, flashTimerMain);
-      } else if (poly === '2:3') {
-        const isA = t % 3 === 0;
-        const isB = t % 2 === 0;
-        if (isA) { setPolyABeat((t / 3) % 2); flash(setPolyFlashA, flashTimerA); }
-        if (isB) { setPolyBBeat((t / 2) % 3); flash(setPolyFlashB, flashTimerB); }
-      } else {
-        const isA = t % 4 === 0;
-        const isB = t % 3 === 0;
-        if (isA) { setPolyABeat((t / 4) % 3); flash(setPolyFlashA, flashTimerA); }
-        if (isB) { setPolyBBeat((t / 3) % 4); flash(setPolyFlashB, flashTimerB); }
-      }
-    }
-
     function scheduler() {
       if (!active) return;
       const now = performance.now();
-      while (nextBeatTime <= now + 300) {
+      while (nextBeatTime <= now + 500) {
         const delay = Math.max(0, nextBeatTime - now);
         const t = scheduledTick;
         setTimeout(() => playTick(t), delay);
-        setTimeout(() => updateVisual(t), delay);
         scheduledTick = getNextTick(t);
         nextBeatTime += intervalMs;
       }
       tickTimerRef.current = setTimeout(scheduler, 25);
     }
 
+    // rAF loop: reads visual ref and updates state — completely decoupled from scheduler
+    const FLASH_DUR = 80;
+    function rafLoop() {
+      if (!active) return;
+      const v = visualRef.current;
+      const now = performance.now();
+      setActiveBeat(v.activeBeat);
+      setActiveSubBeat(v.activeSubBeat);
+      setFlashOn(now - v.flashMainAt < FLASH_DUR);
+      setPolyABeat(v.polyABeat);
+      setPolyBBeat(v.polyBBeat);
+      setPolyFlashA(now - (v.flashAAt ?? 0) < FLASH_DUR);
+      setPolyFlashB(now - (v.flashBAt ?? 0) < FLASH_DUR);
+      rafRef.current = requestAnimationFrame(rafLoop);
+    }
+
     scheduler();
-    return () => { active = false; clearTimeout(tickTimerRef.current); };
+    rafRef.current = requestAnimationFrame(rafLoop);
+
+    return () => {
+      active = false;
+      clearTimeout(tickTimerRef.current);
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [isPlaying, stableBpm, stableBeats, subdivision, polyrhythm]);
 
   return {
