@@ -1,5 +1,57 @@
 import { useState, useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { useSharedValue, withSequence, withTiming, withDelay, runOnUI } from 'react-native-reanimated';
+
+export const METRO_HTML = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head><body>
+<script>
+var ctx=null;
+function gc(){if(!ctx)ctx=new(window.AudioContext||window.webkitAudioContext)();if(ctx.state==='suspended')ctx.resume();return ctx;}
+function bpAt(f,d,g,w){var c=gc(),o=c.createOscillator(),a=c.createGain();o.type='sine';o.frequency.value=f;a.gain.setValueAtTime(g,w);a.gain.exponentialRampToValueAtTime(0.001,w+d);o.connect(a);a.connect(c.destination);o.start(w);o.stop(w+d+0.01);}
+var _s=0,_t=null,AHEAD=2.0,_sw=0;
+function _post(m){try{window.ReactNativeWebView.postMessage(JSON.stringify(m));}catch(e){}}
+function stop(){_s++;clearTimeout(_t);if(ctx){try{ctx.close();}catch(e){}ctx=null;}}
+function start(bpm,beats,div,poly){
+  stop();var s=++_s;var c=gc();_sw=Date.now();
+  var sched;
+  if(poly!=='off'){
+    var lcm=poly==='2:3'?6:12;
+    var aPos=poly==='2:3'?[0,3]:[0,4,8];
+    var bPos=poly==='2:3'?[0,2,4]:[0,3,6,9];
+    var sec=60/(bpm*lcm),tick=0,nextAt=c.currentTime+0.1;
+    sched=function(){
+      if(_s!==s)return;
+      var ct=c.currentTime;
+      while(nextAt<ct+AHEAD){
+        (function(t,w){
+          var b=t%lcm;
+          if(aPos.indexOf(b)>=0){bpAt(1200,0.09,0.7,w);_post({type:'beatA',wt:_sw+w*1000,beat:b});}
+          if(bPos.indexOf(b)>=0){bpAt(580,0.08,0.45,w);_post({type:'beatB',wt:_sw+w*1000,beat:b});}
+        })(tick,nextAt);
+        tick++;nextAt+=sec;
+      }
+      _t=setTimeout(sched,25);
+    };
+  } else {
+    var sec=60/(bpm*div),total=beats*div,tick=0,nextAt=c.currentTime+0.1;
+    sched=function(){
+      if(_s!==s)return;
+      while(nextAt<c.currentTime+AHEAD){
+        (function(t,w){
+          var b=Math.floor(t/div),sub=t%div;
+          bpAt(sub===0?(b===0?1200:880):580,sub===0?0.09:0.05,sub===0?(b===0?0.7:0.5):0.3,w);
+          if(sub===0)_post({type:'beat',wt:_sw+w*1000,beat:b});
+        })(tick,nextAt);
+        tick=(tick+1)%total;nextAt+=sec;
+      }
+      _t=setTimeout(sched,25);
+    };
+  }
+  sched();
+}
+</script>
+</body></html>`;
+
+const FLASH_DUR = 80;
 
 export default function useMetronome() {
   const [bpm, setBpm] = useState(120);
@@ -9,13 +61,13 @@ export default function useMetronome() {
   const [polyrhythm, setPolyrhythm] = useState('off');
   const [polyFlipped, setPolyFlipped] = useState(false);
 
-  const [activeBeat, setActiveBeat] = useState(0);
-  const [activeSubBeat, setActiveSubBeat] = useState(0);
-  const [flashOn, setFlashOn] = useState(false);
-  const [polyABeat, setPolyABeat] = useState(0);
-  const [polyBBeat, setPolyBBeat] = useState(0);
-  const [polyFlashA, setPolyFlashA] = useState(false);
-  const [polyFlashB, setPolyFlashB] = useState(false);
+  // UI 스레드에서 직접 업데이트 — JS re-render 없이 정밀한 타이밍
+  const beatIndexSV = useSharedValue(-1);
+  const beatFlashSV = useSharedValue(0);
+  const beatIndexASV = useSharedValue(-1);
+  const beatFlashASV = useSharedValue(0);
+  const beatIndexBSV = useSharedValue(-1);
+  const beatFlashBSV = useSharedValue(0);
 
   const [stableBpm, setStableBpm] = useState(120);
   const [stableBeats, setStableBeats] = useState(4);
@@ -29,178 +81,141 @@ export default function useMetronome() {
     return () => clearTimeout(t);
   }, [beats]);
 
+  const savedBpmRef = useRef(120);
+  const savedBeatsRef = useRef(4);
   const bpmRef = useRef(bpm);
   const beatsRef = useRef(beats);
-  const subRef = useRef(subdivision);
   const polyRef = useRef(polyrhythm);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { beatsRef.current = beats; }, [beats]);
-  useEffect(() => { subRef.current = subdivision; }, [subdivision]);
   useEffect(() => { polyRef.current = polyrhythm; }, [polyrhythm]);
 
-  const POOL_SIZE = 6;
-  const sounds = useRef({ beep1: [], beep2: [], beep3: [] });
-  const poolIdx = useRef({ beep1: 0, beep2: 0, beep3: 0 });
-  const tickTimerRef = useRef(null);
-  const rafRef = useRef(null);
-  const flashTimerMain = useRef(null);
-  const flashTimerA = useRef(null);
-  const flashTimerB = useRef(null);
+  const webviewRef = useRef(null);
+  const webviewReadyRef = useRef(false);
+  const pendingCmdRef = useRef(null);
 
-  // Refs for visual state — read by rAF loop, no setState in scheduler
-  const visualRef = useRef({
-    activeBeat: 0, activeSubBeat: 0, flash: false,
-    polyABeat: 0, polyBBeat: 0, flashA: false, flashB: false,
-    flashMainAt: 0, flashAAt: 0, flashBAT: 0,
-  });
+  const genRef = useRef(0);
+  const rnTimersRef = useRef(new Set());
 
-  useEffect(() => {
-    async function load() {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const [p1, p2, p3] = await Promise.all([
-        Promise.all(Array.from({ length: POOL_SIZE }, () => Audio.Sound.createAsync(require('../../assets/sounds/beep1.wav')))),
-        Promise.all(Array.from({ length: POOL_SIZE }, () => Audio.Sound.createAsync(require('../../assets/sounds/beep2.wav')))),
-        Promise.all(Array.from({ length: POOL_SIZE }, () => Audio.Sound.createAsync(require('../../assets/sounds/beep3.wav')))),
-      ]);
-      sounds.current = {
-        beep1: p1.map(r => r.sound),
-        beep2: p2.map(r => r.sound),
-        beep3: p3.map(r => r.sound),
-      };
+  function clearRnTimers() {
+    rnTimersRef.current.forEach(clearTimeout);
+    rnTimersRef.current.clear();
+  }
+
+  function onWebViewLoad() {
+    webviewReadyRef.current = true;
+    if (pendingCmdRef.current && webviewRef.current) {
+      webviewRef.current.injectJavaScript(pendingCmdRef.current);
+      pendingCmdRef.current = null;
     }
-    load();
-    return () => {
-      Object.values(sounds.current).forEach(pool => pool.forEach(s => s?.unloadAsync()));
-    };
-  }, []);
-
-  function playSound(key) {
-    const pool = sounds.current[key];
-    if (!pool?.length) return;
-    const idx = poolIdx.current[key];
-    pool[idx]?.replayAsync();
-    poolIdx.current[key] = (idx + 1) % POOL_SIZE;
   }
 
   useEffect(() => {
-    clearTimeout(tickTimerRef.current);
-    cancelAnimationFrame(rafRef.current);
+    const cmd = isPlaying
+      ? `start(${stableBpm},${stableBeats},${subdivision},'${polyrhythm}'); true;`
+      : 'stop(); true;';
+
+    if (webviewRef.current && webviewReadyRef.current) {
+      webviewRef.current.injectJavaScript(cmd);
+    } else {
+      pendingCmdRef.current = cmd;
+    }
+
+    genRef.current++;
+    clearRnTimers();
 
     if (!isPlaying) {
-      const v = visualRef.current;
-      v.activeBeat = 0; v.activeSubBeat = 0; v.flash = false;
-      v.polyABeat = 0; v.polyBBeat = 0; v.flashA = false; v.flashB = false;
-      setActiveBeat(0); setActiveSubBeat(0); setFlashOn(false);
-      setPolyABeat(0); setPolyBBeat(0); setPolyFlashA(false); setPolyFlashB(false);
-      return;
+      beatIndexSV.value = -1;
+      beatFlashSV.value = 0;
+      beatIndexASV.value = -1;
+      beatFlashASV.value = 0;
+      beatIndexBSV.value = -1;
+      beatFlashBSV.value = 0;
     }
-
-    const poly = polyRef.current;
-    const div = subRef.current;
-    let intervalMs;
-    if (poly === 'off') intervalMs = 60000 / (stableBpm * div);
-    else if (poly === '2:3') intervalMs = 60000 / (stableBpm * 6);
-    else intervalMs = 60000 / (stableBpm * 12);
-
-    let nextBeatTime = performance.now();
-    let scheduledTick = 0;
-    let active = true;
-
-    function getNextTick(t) {
-      if (poly === 'off') return (t + 1) % (beatsRef.current * div);
-      if (poly === '2:3') return (t + 1) % 6;
-      return (t + 1) % 12;
-    }
-
-    function playTick(t) {
-      if (!active) return;
-      // update visual ref (no setState here)
-      const v = visualRef.current;
-      const now = performance.now();
-      if (poly === 'off') {
-        const beat = Math.floor(t / div);
-        const sub = t % div;
-        v.activeBeat = beat;
-        v.activeSubBeat = sub;
-        v.flashMainAt = now;
-      } else if (poly === '2:3') {
-        const isA = t % 3 === 0;
-        const isB = t % 2 === 0;
-        if (isA) { v.polyABeat = (t / 3) % 2; v.flashAAt = now; }
-        if (isB) { v.polyBBeat = (t / 2) % 3; v.flashBAt = now; }
-      } else {
-        const isA = t % 4 === 0;
-        const isB = t % 3 === 0;
-        if (isA) { v.polyABeat = (t / 4) % 3; v.flashAAt = now; }
-        if (isB) { v.polyBBeat = (t / 3) % 4; v.flashBAt = now; }
-      }
-
-      // play sound (no setState)
-      if (poly === 'off') {
-        const beat = Math.floor(t / div);
-        const sub = t % div;
-        playSound(sub === 0 ? (beat === 0 ? 'beep1' : 'beep2') : 'beep3');
-      } else if (poly === '2:3') {
-        const isA = t % 3 === 0;
-        const isB = t % 2 === 0;
-        if (isA) playSound('beep1');
-        if (isB && !isA) playSound('beep3');
-        if (isA && isB) playSound('beep1');
-      } else {
-        const isA = t % 4 === 0;
-        const isB = t % 3 === 0;
-        if (isA) playSound('beep1');
-        if (isB && !isA) playSound('beep3');
-      }
-    }
-
-    function scheduler() {
-      if (!active) return;
-      const now = performance.now();
-      while (nextBeatTime <= now + 500) {
-        const delay = Math.max(0, nextBeatTime - now);
-        const t = scheduledTick;
-        setTimeout(() => playTick(t), delay);
-        scheduledTick = getNextTick(t);
-        nextBeatTime += intervalMs;
-      }
-      tickTimerRef.current = setTimeout(scheduler, 25);
-    }
-
-    // rAF loop: reads visual ref and updates state — completely decoupled from scheduler
-    const FLASH_DUR = 80;
-    function rafLoop() {
-      if (!active) return;
-      const v = visualRef.current;
-      const now = performance.now();
-      setActiveBeat(v.activeBeat);
-      setActiveSubBeat(v.activeSubBeat);
-      setFlashOn(now - v.flashMainAt < FLASH_DUR);
-      setPolyABeat(v.polyABeat);
-      setPolyBBeat(v.polyBBeat);
-      setPolyFlashA(now - (v.flashAAt ?? 0) < FLASH_DUR);
-      setPolyFlashB(now - (v.flashBAt ?? 0) < FLASH_DUR);
-      rafRef.current = requestAnimationFrame(rafLoop);
-    }
-
-    scheduler();
-    rafRef.current = requestAnimationFrame(rafLoop);
-
-    return () => {
-      active = false;
-      clearTimeout(tickTimerRef.current);
-      cancelAnimationFrame(rafRef.current);
-    };
   }, [isPlaying, stableBpm, stableBeats, subdivision, polyrhythm]);
+
+  function handleWebViewMessage(event) {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      const gen = genRef.current;
+      const delay = Math.max(0, data.wt - Date.now());
+
+      if (data.type === 'beat') {
+        const beat = data.beat;
+        const id = setTimeout(() => {
+          rnTimersRef.current.delete(id);
+          if (genRef.current !== gen) return;
+          runOnUI(() => {
+            'worklet';
+            beatIndexSV.value = beat;
+            beatFlashSV.value = withSequence(
+              withTiming(1, { duration: 0 }),
+              withDelay(FLASH_DUR, withTiming(0, { duration: 0 }))
+            );
+          })();
+        }, delay);
+        rnTimersRef.current.add(id);
+      } else if (data.type === 'beatA') {
+        const beat = data.beat;
+        const id = setTimeout(() => {
+          rnTimersRef.current.delete(id);
+          if (genRef.current !== gen) return;
+          runOnUI(() => {
+            'worklet';
+            beatIndexASV.value = beat;
+            beatFlashASV.value = withSequence(
+              withTiming(1, { duration: 0 }),
+              withDelay(FLASH_DUR, withTiming(0, { duration: 0 }))
+            );
+          })();
+        }, delay);
+        rnTimersRef.current.add(id);
+      } else if (data.type === 'beatB') {
+        const beat = data.beat;
+        const id = setTimeout(() => {
+          rnTimersRef.current.delete(id);
+          if (genRef.current !== gen) return;
+          runOnUI(() => {
+            'worklet';
+            beatIndexBSV.value = beat;
+            beatFlashBSV.value = withSequence(
+              withTiming(1, { duration: 0 }),
+              withDelay(FLASH_DUR, withTiming(0, { duration: 0 }))
+            );
+          })();
+        }, delay);
+        rnTimersRef.current.add(id);
+      }
+    } catch {}
+  }
+
+  function selectPoly(newPoly) {
+    if (newPoly !== 'off' && polyRef.current === 'off') {
+      savedBpmRef.current = bpmRef.current;
+      savedBeatsRef.current = beatsRef.current;
+      setBpm(40);
+      setBeats(1);
+      setStableBpm(40);
+      setStableBeats(1);
+    } else if (newPoly === 'off' && polyRef.current !== 'off') {
+      setBpm(savedBpmRef.current);
+      setBeats(savedBeatsRef.current);
+      setStableBpm(savedBpmRef.current);
+      setStableBeats(savedBeatsRef.current);
+    }
+    setPolyrhythm(newPoly);
+  }
 
   return {
     bpm, setBpm,
     isPlaying, toggle: () => setIsPlaying(p => !p),
     beats, setBeats,
     subdivision, setSubdivision,
-    polyrhythm, setPolyrhythm,
+    polyrhythm, setPolyrhythm: selectPoly,
     polyFlipped, setPolyFlipped,
-    activeBeat, activeSubBeat, flashOn,
-    polyABeat, polyBBeat, polyFlashA, polyFlashB,
+    beatIndexSV, beatFlashSV,
+    beatIndexASV, beatFlashASV,
+    beatIndexBSV, beatFlashBSV,
+    webviewRef, handleWebViewMessage, onWebViewLoad,
   };
 }

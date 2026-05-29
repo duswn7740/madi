@@ -18,14 +18,6 @@ export function useAppInterstitialAd() {
 
     const { InterstitialAd, AdEventType } = require('react-native-google-mobile-ads');
 
-    function createAd() {
-      const ad = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_ID);
-      ad.addAdEventListener(AdEventType.LOADED, () => { loadedRef.current = true; });
-      ad.addAdEventListener(AdEventType.CLOSED, () => { loadedRef.current = false; createAd(); });
-      ad.load();
-      adRef.current = ad;
-    }
-
     function tryShow() {
       if (!loadedRef.current || !adRef.current) return;
       adRef.current.show();
@@ -33,14 +25,21 @@ export function useAppInterstitialAd() {
       loadedRef.current = false;
     }
 
-    createAd();
+    function createAd() {
+      const ad = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_ID);
+      ad.addAdEventListener(AdEventType.LOADED, () => {
+        loadedRef.current = true;
+        if (!shownOnLaunchRef.current) {
+          shownOnLaunchRef.current = true;
+          tryShow();
+        }
+      });
+      ad.addAdEventListener(AdEventType.CLOSED, () => { loadedRef.current = false; createAd(); });
+      ad.load();
+      adRef.current = ad;
+    }
 
-    const launchTimer = setTimeout(() => {
-      if (!shownOnLaunchRef.current) {
-        shownOnLaunchRef.current = true;
-        tryShow();
-      }
-    }, 1000);
+    createAd();
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       const prev = appStateRef.current;
@@ -59,7 +58,6 @@ export function useAppInterstitialAd() {
     });
 
     return () => {
-      clearTimeout(launchTimer);
       subscription.remove();
     };
   }, []);

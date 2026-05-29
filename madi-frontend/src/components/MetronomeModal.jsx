@@ -1,8 +1,11 @@
 import { View, Modal, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useState } from 'react';
+import { WebView } from 'react-native-webview';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Text from './Text';
 import WheelPicker from './WheelPicker';
 import { colors, spacing, typography, radius, fontFamily } from '@/src/theme';
+import { METRO_HTML } from '@/src/hooks/useMetronome';
 
 const BPM_ITEMS = Array.from({ length: 201 }, (_, i) => String(i + 40));
 const BEAT_ITEMS = Array.from({ length: 16 }, (_, i) => String(i + 1));
@@ -19,37 +22,37 @@ const POLYRHYTHMS = [
   { label: '3:4', value: '3:4' },
 ];
 
-// 일반 비트 점
-function BeatDot({ isActive, isStrong, flashOn }) {
-  const lit = isActive && flashOn;
-  return (
-    <View style={[
-      styles.dot,
-      isActive && !lit && styles.dotActiveDim,
-      lit && (isStrong ? styles.dotStrong : styles.dotWeak),
-    ]} />
-  );
+function BeatDot({ indexSV, flashSV, myIndex, isStrong }) {
+  const animStyle = useAnimatedStyle(() => {
+    const isActive = indexSV.value === myIndex;
+    const lit = isActive && flashSV.value > 0.5;
+    return {
+      backgroundColor: lit
+        ? (isStrong ? colors.sageDark : colors.butter)
+        : isActive ? colors.border : colors.inactive,
+      transform: [{ scale: lit ? 1.3 : 1 }],
+    };
+  });
+  return <Animated.View style={[styles.dot, animStyle]} />;
 }
 
-function PolyDots({ positions, lcm, activeBeat, flashOn, isMain }) {
+function PolyDot({ indexSV, flashSV, myIndex, isMain }) {
+  const animStyle = useAnimatedStyle(() => {
+    const lit = indexSV.value === myIndex && flashSV.value > 0.5;
+    return {
+      backgroundColor: lit ? (isMain ? colors.sageDark : colors.butterDark) : colors.inactive,
+      transform: [{ scale: lit ? 1.3 : 1 }],
+    };
+  });
+  return <Animated.View style={[styles.dot, animStyle]} />;
+}
+
+function PolyDots({ lcm, indexSV, flashSV, isMain }) {
   return (
     <View style={styles.polyContainer}>
-      {Array.from({ length: lcm }, (_, i) => {
-        const beatIdx = positions.indexOf(i);
-        const isBeat = beatIdx !== -1;
-        const lit = isBeat && beatIdx === activeBeat && flashOn;
-        return (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              !isBeat && styles.dotGhost,
-              isBeat && beatIdx === activeBeat && !lit && styles.dotActiveDim,
-              lit && (isMain ? styles.dotStrong : styles.dotPoly),
-            ]}
-          />
-        );
-      })}
+      {Array.from({ length: lcm }, (_, i) => (
+        <PolyDot key={i} indexSV={indexSV} flashSV={flashSV} myIndex={i} isMain={isMain} />
+      ))}
     </View>
   );
 }
@@ -67,8 +70,10 @@ export default function MetronomeModal({
   subdivision, setSubdivision,
   polyrhythm, setPolyrhythm,
   polyFlipped, setPolyFlipped,
-  activeBeat, flashOn,
-  polyABeat, polyBBeat, polyFlashA, polyFlashB,
+  beatIndexSV, beatFlashSV,
+  beatIndexASV, beatFlashASV,
+  beatIndexBSV, beatFlashBSV,
+  webviewRef, handleWebViewMessage, onWebViewLoad,
 }) {
   const [editingBpm, setEditingBpm] = useState(false);
   const [bpmInput, setBpmInput] = useState('');
@@ -89,15 +94,21 @@ export default function MetronomeModal({
 
   const isPoly = polyrhythm !== 'off';
   const polyConf = POLY_CONFIG[polyrhythm] ?? null;
-  const topPositions = polyConf ? (polyFlipped ? polyConf.b : polyConf.a) : [];
-  const bottomPositions = polyConf ? (polyFlipped ? polyConf.a : polyConf.b) : [];
-  const topBeat = polyFlipped ? polyBBeat : polyABeat;
-  const bottomBeat = polyFlipped ? polyABeat : polyBBeat;
-  const topFlash = polyFlipped ? polyFlashB : polyFlashA;
-  const bottomFlash = polyFlipped ? polyFlashA : polyFlashB;
   const topIsMain = !polyFlipped;
 
   return (
+    <>
+    <View style={styles.audioWebView} pointerEvents="none">
+      <WebView
+        ref={webviewRef}
+        source={{ html: METRO_HTML }}
+        onMessage={handleWebViewMessage}
+        onLoadEnd={onWebViewLoad}
+        javaScriptEnabled
+        originWhitelist={['*']}
+        style={styles.audioWebViewInner}
+      />
+    </View>
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
@@ -115,28 +126,39 @@ export default function MetronomeModal({
           <View style={styles.beatArea}>
             {isPoly && polyConf ? (
               <>
-                <PolyDots positions={topPositions} lcm={polyConf.lcm} activeBeat={topBeat} flashOn={topFlash} isMain={topIsMain} />
+                <PolyDots
+                  lcm={polyConf.lcm}
+                  indexSV={polyFlipped ? beatIndexBSV : beatIndexASV}
+                  flashSV={polyFlipped ? beatFlashBSV : beatFlashASV}
+                  isMain={topIsMain}
+                />
                 <TouchableOpacity onPress={() => setPolyFlipped(f => !f)} style={styles.swapBtn}>
                   <Text style={styles.swapText}>⇅</Text>
                 </TouchableOpacity>
-                <PolyDots positions={bottomPositions} lcm={polyConf.lcm} activeBeat={bottomBeat} flashOn={bottomFlash} isMain={!topIsMain} />
+                <PolyDots
+                  lcm={polyConf.lcm}
+                  indexSV={polyFlipped ? beatIndexASV : beatIndexBSV}
+                  flashSV={polyFlipped ? beatFlashASV : beatFlashBSV}
+                  isMain={!topIsMain}
+                />
               </>
             ) : (
               <View style={styles.dotsRow}>
                 {Array.from({ length: beats }, (_, i) => (
                   <BeatDot
                     key={i}
-                    isActive={i === activeBeat}
+                    indexSV={beatIndexSV}
+                    flashSV={beatFlashSV}
+                    myIndex={i}
                     isStrong={i === 0}
-                    flashOn={flashOn}
                   />
                 ))}
               </View>
             )}
           </View>
 
-          {/* BPM + 박 선택 */}
-          <View style={styles.pickersRow}>
+          {/* BPM + 박 선택 (폴리 모드에서 잠금) */}
+          <View style={[styles.pickersRow, isPoly && styles.pickersLocked]} pointerEvents={isPoly ? 'none' : 'auto'}>
             {/* BPM */}
             <View style={styles.pickerBlock}>
               <Text style={styles.pickerLabel}>BPM</Text>
@@ -231,10 +253,13 @@ export default function MetronomeModal({
         </View>
       </View>
     </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  audioWebView: { position: 'absolute', width: 2, height: 2, top: 0, left: 0 },
+  audioWebViewInner: { flex: 1 },
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
@@ -248,7 +273,6 @@ const styles = StyleSheet.create({
   title: { fontSize: typography.lg, color: colors.textMain },
   close: { fontSize: typography.md, color: colors.textSub },
 
-  // 비트 점
   beatArea: { alignItems: 'center', alignSelf: 'stretch', gap: spacing.sm, minHeight: 60 },
   dotsRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap', justifyContent: 'center' },
   polyContainer: { flexDirection: 'row', justifyContent: 'space-evenly', alignSelf: 'stretch', paddingHorizontal: spacing.md },
@@ -258,16 +282,12 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: colors.inactive,
   },
-  dotStrong: { backgroundColor: colors.sageDark, transform: [{ scale: 1.6 }] },
-  dotWeak: { backgroundColor: colors.butter, transform: [{ scale: 1.3 }] },
-  dotPoly: { backgroundColor: colors.butterDark, transform: [{ scale: 1.3 }] },
-  dotGhost: { backgroundColor: colors.inactive, opacity:0.3 },
-  dotActiveDim: { backgroundColor: colors.border },
+
   swapBtn: { paddingVertical: spacing.xs },
   swapText: { fontSize: typography.lg, color: colors.textSub },
 
-  // 피커
   pickersRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  pickersLocked: { opacity: 0.35 },
   pickerBlock: { alignItems: 'center', gap: spacing.xs },
   pickerLabel: { fontSize: typography.xs, color: colors.textSub },
   numText: { fontSize: 32, color: colors.textMain, minWidth: 60, textAlign: 'center' },
@@ -281,7 +301,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.butter,
   },
 
-  // 칩
   row: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
@@ -295,7 +314,6 @@ const styles = StyleSheet.create({
   chipText: { fontSize: typography.sm, color: colors.textSub, includeFontPadding: false, textAlignVertical: 'center' },
   chipTextActive: { color: colors.textMain },
 
-  // 시작/정지
   playButton: {
     backgroundColor: colors.sage,
     borderRadius: radius.md,

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { colors, typography, fontFamily, radius } from '@/src/theme';
 
@@ -10,6 +10,12 @@ export default function WheelPicker({ items, selectedIndex, onSelect, width = 80
   const hasInitialized = useRef(false);
   const lastIndexRef = useRef(selectedIndex);
   const isMomentumRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasInitialized.current) return;
+    scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: true });
+    lastIndexRef.current = selectedIndex;
+  }, [selectedIndex]);
 
   const snapToIndex = (y) => {
     const index = Math.round(y / ITEM_HEIGHT);
