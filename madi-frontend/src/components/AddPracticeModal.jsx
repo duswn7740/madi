@@ -1,7 +1,7 @@
 import { View, Modal, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Text from '@/src/components/Text';
 import { useState, useEffect } from 'react';
-import { colors, spacing, typography, radius } from '@/src/theme';
+import { colors, spacing, typography, radius, fontFamily } from '@/src/theme';
 import { getTemplates } from '@/src/api/practices';
 
 const MAX_LENGTH = 20;
@@ -113,8 +113,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    typography: typography.lg,
-    fontWeight: '700',
+    fontSize: typography.lg,
+    fontFamily: fontFamily.bold,
     color: colors.textMain,
     textAlign: 'center',
   },
@@ -131,11 +131,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    typography: typography.md,
+    fontSize: typography.md,
+    fontFamily: fontFamily.regular,
     color: colors.textMain,
   },
   counter: {
-    typography: typography.xs,
+    fontSize: typography.xs,
+    fontFamily: fontFamily.regular,
     color: colors.textSub,
   },
   counterMax: {
@@ -150,7 +152,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   chipTitle: {
-    typography: typography.xs,
+    fontSize: typography.xs,
+    fontFamily: fontFamily.regular,
     color: colors.textSub,
     marginBottom: spacing.xs,
   },
@@ -167,7 +170,8 @@ const styles = StyleSheet.create({
     borderColor: colors.butter,
   },
   chipText: {
-    typography: typography.sm,
+    fontSize: typography.sm,
+    fontFamily: fontFamily.regular,
     color: colors.textMain,
   },
   buttons: {
@@ -184,7 +188,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelText: {
-    typography: typography.sm,
+    fontSize: typography.sm,
+    fontFamily: fontFamily.regular,
     color: colors.textSub,
   },
   saveButton: {
@@ -198,8 +203,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inactive,
   },
   saveText: {
-    typography: typography.sm,
-    fontWeight: '700',
+    fontSize: typography.sm,
+    fontFamily: fontFamily.bold,
     color: colors.textMain,
   },
   emptyText: {

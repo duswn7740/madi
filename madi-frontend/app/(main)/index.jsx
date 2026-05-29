@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
-import { colors, spacing, typography, radius } from '@/src/theme';
+import { colors, spacing, typography, radius, fontFamily } from '@/src/theme';
 import Text from '@/src/components/Text';
 import { STICKER_PACKS, DEFAULT_PACK } from '@/src/constants/stickers';
 import CalendarStrip from '@/src/components/CalendarStrip';
@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
   editInput: {
     flex: 1,
     fontSize: typography.md,
+    fontFamily: fontFamily.regular,
     color: colors.textMain,
     borderBottomWidth: 1,
     borderBottomColor: colors.butter,
