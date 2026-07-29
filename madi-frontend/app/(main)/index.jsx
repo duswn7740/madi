@@ -1,7 +1,7 @@
-import { View, TouchableOpacity, StyleSheet, TextInput, Image, Animated } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, TextInput, Image, Animated, PanResponder } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { colors, spacing, typography, radius, fontFamily } from '@/src/theme';
 import Text from '@/src/components/Text';
@@ -13,7 +13,7 @@ import ConfirmModal from '@/src/components/ConfirmModal';
 import MetronomeModal from '@/src/components/MetronomeModal';
 import TuningForkModal from '@/src/components/TuningForkModal';
 import useMetronome from '@/src/hooks/useMetronome';
-import { getPractices, createPractice, updatePractice, deletePractice, copyPractice, reorderPractices } from '@/src/api/practices';
+import { getPractices, getPracticeDates, createPractice, updatePractice, deletePractice, copyPractice, reorderPractices } from '@/src/api/practices';
 import { incrementSticker, decrementSticker } from '@/src/api/logs';
 import { getActivePack } from '@/src/api/packs';
 import BannerAdView from '@/src/components/BannerAdView';
@@ -176,6 +176,7 @@ function PracticeItem({ item, itemIndex, packId, onDelete, onStickerChange, onEd
 
 export default function HomeScreen() {
   const [practices, setPractices] = useState([]);
+  const [practiceDates, setPracticeDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activePack, setActivePack] = useState(DEFAULT_PACK);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -186,6 +187,15 @@ export default function HomeScreen() {
   const [dupConfirm, setDupConfirm] = useState({ visible: false, dateStr: null });
   const [toast, setToast] = useState(null);
   const metronome = useMetronome();
+  const calendarRef = useRef(null);
+
+  const swipePan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, { dx, dy }) => Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 15,
+    onPanResponderRelease: (_, { dx }) => {
+      if (dx < -50) calendarRef.current?.goRight();
+      else if (dx > 50) calendarRef.current?.goLeft();
+    },
+  }), []);
 
   const loadPractices = useCallback(async (date) => {
     try {
@@ -194,6 +204,19 @@ export default function HomeScreen() {
     } catch (e) {
       console.error(e);
     }
+  }, []);
+
+  const loadPracticeDates = useCallback(async () => {
+    try {
+      const dates = await getPracticeDates();
+      setPracticeDates(dates);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPracticeDates();
   }, []);
 
   useEffect(() => {
@@ -207,6 +230,7 @@ export default function HomeScreen() {
     try {
       await createPractice(selectedDate, content);
       loadPractices(selectedDate);
+      loadPracticeDates();
     } catch (e) {
       console.error(e);
     }
@@ -229,6 +253,7 @@ export default function HomeScreen() {
     try {
       await deletePractice(deleteConfirm.id);
       setPractices(prev => prev.filter(p => p.id !== deleteConfirm.id));
+      loadPracticeDates();
     } catch (e) {
       console.error(e);
     } finally {
@@ -282,6 +307,7 @@ export default function HomeScreen() {
     try {
       await copyPractice(copyItem.id, dateStr);
       if (dateStr === formatDate(selectedDate)) loadPractices(selectedDate);
+      loadPracticeDates();
       showToast('복사 완료!', true);
     } catch (e) {
       console.error(e);
@@ -295,7 +321,8 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <CalendarStrip
-        practiceDates={practices.map(p => p.date)}
+        ref={calendarRef}
+        practiceDates={practiceDates}
         onDateChange={(date) => setSelectedDate(date)}
         onMetronomePress={() => setMetronomeVisible(true)}
         onTunerPress={() => setTuningForkVisible(true)}
@@ -303,7 +330,7 @@ export default function HomeScreen() {
         onCopyDate={handleCopyDate}
       />
 
-      <View style={styles.list}>
+      <View style={styles.list} {...swipePan.panHandlers}>
         {!!toast && (
           <View style={[styles.toast, !toast.success && styles.toastFail]}>
             <Text style={styles.toastText}>{toast.msg}</Text>

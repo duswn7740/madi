@@ -1,5 +1,5 @@
 import { View, FlatList, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
-import { useRef, useState } from 'react';
+import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import Text from './Text';
 import { colors, spacing, typography, radius, fontFamily } from '@/src/theme';
 
@@ -23,7 +23,7 @@ function getDateByIndex(index) {
 const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA = Array.from({ length: TOTAL_DAYS }, (_, i) => i);
 
-export default function CalendarStrip({ practiceDates = [], onDateChange, onMetronomePress, onTunerPress, copyMode = false, onCopyDate }) {
+const CalendarStrip = forwardRef(function CalendarStrip({ practiceDates = [], onDateChange, onMetronomePress, onTunerPress, copyMode = false, onCopyDate }, ref) {
   const TODAY = new Date();
   const listRef = useRef(null);
   const [selectedIndex, setSelectedIndex] = useState(TODAY_INDEX);
@@ -31,12 +31,8 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
   const selectedDate = getDateByIndex(selectedIndex);
   const isViewingToday = isSameDay(selectedDate, TODAY);
 
-  function getTextColor(d, hasPractice) {
-    const isToday = isSameDay(d, TODAY);
-    const isPast = d < TODAY;
-    if (!hasPractice) return colors.textSub;
-    if (isPast || isToday) return colors.sageDark;
-    return colors.butterDark;
+  function getTextColor(hasPractice) {
+    return hasPractice ? colors.sageDark : colors.textSub;
   }
 
   function scrollToIndex(index) {
@@ -56,6 +52,8 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
     onDateChange?.(getDateByIndex(newIndex));
     scrollToIndex(newIndex);
   }
+
+  useImperativeHandle(ref, () => ({ goLeft, goRight }));
 
   function goToday() {
     setSelectedIndex(TODAY_INDEX);
@@ -78,7 +76,7 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
     const isToday = isSameDay(d, TODAY);
     const isSelected = index === selectedIndex;
     const hasPractice = practiceDates.some(pd => isSameDay(new Date(pd), d));
-    const textColor = getTextColor(d, hasPractice);
+    const textColor = getTextColor(hasPractice);
     const isFirstOfMonth = d.getDate() === 1;
     const dateLabel = isFirstOfMonth ? `${d.getMonth() + 1}/1` : `${d.getDate()}`;
 
@@ -155,7 +153,9 @@ export default function CalendarStrip({ practiceDates = [], onDateChange, onMetr
       />
     </View>
   );
-}
+});
+
+export default CalendarStrip;
 
 const styles = StyleSheet.create({
   calendarWrapper: {

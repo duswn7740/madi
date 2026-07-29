@@ -14,11 +14,12 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/icons/madi-icon.png"
+        "foregroundImage": "./assets/icons/madi-main-icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.rollinpebbles.madi"
+      "package": "com.rollinpebbles.madi",
+      "versionCode": 2
     },
     "web": {
       "output": "static"

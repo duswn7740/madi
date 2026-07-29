@@ -12,6 +12,11 @@ export async function getPractices(date) {
   return res.data;
 }
 
+export async function getPracticeDates() {
+  const res = await client.get('/practices/dates');
+  return res.data;
+}
+
 export async function getTemplates() {
   const res = await client.get('/practices/templates');
   return res.data;

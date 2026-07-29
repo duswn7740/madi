@@ -16,13 +16,22 @@ exports.getByDate = async (req, res) => {
   res.json(rows);
 };
 
+// GET /practices/dates - 연습 기록이 있는 날짜 목록
+exports.getDates = async (req, res) => {
+  const [rows] = await db.query(
+    'SELECT DISTINCT date FROM practices WHERE user_id = ?',
+    [req.user.id]
+  );
+  res.json(rows.map(r => r.date));
+};
+
 // GET /practices/templates - 최근 연습 목록 (빠른 입력 칩용)
 exports.getTemplates = async (req, res) => {
   const [rows] = await db.query(
-    `SELECT content, MAX(created_at) AS last_used
+    `SELECT MIN(TRIM(content)) AS content, MAX(created_at) AS last_used
      FROM practices
      WHERE user_id = ?
-     GROUP BY content
+     GROUP BY LOWER(TRIM(content))
      ORDER BY last_used DESC
      LIMIT 10`,
     [req.user.id]

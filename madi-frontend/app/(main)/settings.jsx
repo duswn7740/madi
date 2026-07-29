@@ -24,6 +24,7 @@ function SettingRow({ label, onPress, danger = false }) {
 }
 
 export default function SettingsScreen() {
+  const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
   const [nicknameInput, setNicknameInput] = useState('');
   const [nicknameModal, setNicknameModal] = useState(false);
@@ -40,6 +41,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     AsyncStorage.getItem('nickname').then(n => { if (n) setNickname(n); });
+    client.get('/users/me').then(res => setEmail(res.data.email)).catch(() => {});
   }, []);
 
   const showConfirm = (title, message, confirmText, onConfirm) =>
@@ -102,6 +104,11 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>계정</Text>
           <View style={styles.card}>
+            <View style={styles.profileRow}>
+              <Text style={styles.profileLabel}>이메일</Text>
+              <Text style={styles.profileValue}>{email}</Text>
+            </View>
+            <View style={styles.divider} />
             <View style={styles.profileRow}>
               <Text style={styles.profileLabel}>닉네임</Text>
               <Text style={styles.profileValue}>{nickname}</Text>
