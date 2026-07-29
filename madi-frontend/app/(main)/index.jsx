@@ -16,7 +16,6 @@ import useMetronome from '@/src/hooks/useMetronome';
 import { getPractices, getPracticeDates, createPractice, updatePractice, deletePractice, copyPractice, reorderPractices } from '@/src/api/practices';
 import { incrementSticker, decrementSticker } from '@/src/api/logs';
 import { getActivePack } from '@/src/api/packs';
-import BannerAdView from '@/src/components/BannerAdView';
 
 function formatDate(date) {
   const y = date.getFullYear();
@@ -415,8 +414,6 @@ export default function HomeScreen() {
         visible={tuningForkVisible}
         onClose={() => setTuningForkVisible(false)}
       />
-
-      <BannerAdView />
     </SafeAreaView>
   );
 }
